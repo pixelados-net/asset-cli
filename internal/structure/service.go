@@ -3,6 +3,7 @@ package structure
 import (
 	"context"
 	"sort"
+	"strings"
 	"sync"
 
 	"golang.org/x/sync/errgroup"
@@ -87,6 +88,9 @@ func (svc *service) Create(ctx context.Context) ([]string, error) {
 	var created []string
 
 	for _, path := range report.Missing {
+		if !strings.HasSuffix(path, "/") {
+			continue // an exact file key is real content to upload, not a placeholder folder
+		}
 		group.Go(func() error {
 			if err := svc.storage.Touch(groupCtx, path+placeholderSuffix); err != nil {
 				return err

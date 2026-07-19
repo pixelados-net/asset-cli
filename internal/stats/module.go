@@ -1,6 +1,12 @@
 package stats
 
-import "go.uber.org/fx"
+import (
+	"go.uber.org/fx"
 
-// Module provides the stats realm's service from the injected MinIO client.
-var Module = fx.Module("stats", fx.Provide(NewService))
+	"github.com/pixelados-net/asset-cli/internal/furniture"
+)
+
+// Module provides the stats realm's service from the injected MinIO client and
+// composes furniture.Module so Orphans can resolve furniture.Service. As more
+// categories grow their own catalog cross-check, compose their modules here too.
+var Module = fx.Module("stats", furniture.Module, fx.Provide(NewService))

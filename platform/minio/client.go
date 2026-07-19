@@ -3,6 +3,7 @@ package minio
 import (
 	"bytes"
 	"context"
+	"io"
 	"strings"
 
 	sdk "github.com/minio/minio-go/v7"
@@ -105,4 +106,22 @@ func (client *Client) CountByExtension(ctx context.Context, prefix, extension st
 		}
 	}
 	return count, nil
+}
+
+// ListKeys returns every object key found recursively under prefix.
+func (client *Client) ListKeys(ctx context.Context, prefix string) ([]string, error) {
+	var keys []string
+	objects := client.client.ListObjects(ctx, client.bucket, sdk.ListObjectsOptions{Prefix: prefix, Recursive: true})
+	for object := range objects {
+		if object.Err != nil {
+			return nil, object.Err
+		}
+		keys = append(keys, object.Key)
+	}
+	return keys, nil
+}
+
+// Get opens the object at key for reading. The caller must close the returned reader.
+func (client *Client) Get(ctx context.Context, key string) (io.ReadCloser, error) {
+	return client.client.GetObject(ctx, client.bucket, key, sdk.GetObjectOptions{})
 }

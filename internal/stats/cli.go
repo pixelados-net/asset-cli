@@ -13,7 +13,7 @@ func NewRealmCommand() *cobra.Command {
 		Use:   "stats",
 		Short: "report content counts for the asset-cli bucket",
 	}
-	realm.AddCommand(newNitroCommand())
+	realm.AddCommand(newNitroCommand(), newOrphanCommand())
 	return realm
 }
 
@@ -35,6 +35,32 @@ func newNitroCommand() *cobra.Command {
 					total += count.Total
 				}
 				log.Info("nitro bundle total", zap.Int("total", total))
+				return nil
+			})
+		},
+	}
+}
+
+func newOrphanCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "orphan",
+		Short: "report orphaned and missing bundles per content category",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			ctx := cmd.Context()
+			return bootstrap.Invoke(ctx, Module, func(service Service, log *zap.Logger) error {
+				reports, err := service.Orphans(ctx)
+				if err != nil {
+					log.Error("stats orphan failed", zap.Error(err))
+					return err
+				}
+				for _, report := range reports {
+					log.Info("orphan report",
+						zap.String("category", report.Category),
+						zap.Int("matched", report.Matched),
+						zap.Int("orphaned", report.Orphaned),
+						zap.Int("missing", report.Missing),
+					)
+				}
 				return nil
 			})
 		},

@@ -3,6 +3,7 @@ package structure
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -111,8 +112,14 @@ func TestServiceCreateFillsOnlyMissingPaths(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
-	if len(created) != len(ExpectedPaths)-1 {
-		t.Fatalf("created = %#v", created)
+	wantCreated := 0
+	for _, path := range ExpectedPaths[1:] {
+		if strings.HasSuffix(path, "/") {
+			wantCreated++
+		}
+	}
+	if len(created) != wantCreated {
+		t.Fatalf("created = %#v, want %d entries", created, wantCreated)
 	}
 	if len(storage.touched) != len(created) {
 		t.Fatalf("touched = %#v", storage.touched)
@@ -120,6 +127,26 @@ func TestServiceCreateFillsOnlyMissingPaths(t *testing.T) {
 	for _, path := range created {
 		if path == ExpectedPaths[0] {
 			t.Fatalf("Create() recreated already-present path %q", path)
+		}
+	}
+}
+
+func TestServiceCreateNeverFabricatesMissingFiles(t *testing.T) {
+	storage := &fakeStorage{existing: map[string]bool{}}
+	svc := newService(storage)
+
+	created, err := svc.Create(context.Background())
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	for _, path := range created {
+		if !strings.HasSuffix(path, "/") {
+			t.Fatalf("Create() fabricated a placeholder for exact file key %q", path)
+		}
+	}
+	for _, key := range storage.touched {
+		if strings.Contains(key, "gamedata/") && strings.HasSuffix(key, ".json"+placeholderSuffix) {
+			t.Fatalf("Create() touched a placeholder for a required gamedata file: %q", key)
 		}
 	}
 }

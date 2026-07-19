@@ -6,6 +6,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/pixelados-net/asset-cli/internal/furniture"
 )
 
 type fakeStorage struct {
@@ -27,6 +29,18 @@ func (storage *fakeStorage) CountByExtension(_ context.Context, prefix, _ string
 	return storage.counts[prefix], nil
 }
 
+type fakeFurnitureChecker struct {
+	report furniture.Report
+	err    error
+}
+
+func (fake *fakeFurnitureChecker) Check(context.Context) (furniture.Report, error) {
+	if fake.err != nil {
+		return furniture.Report{}, fake.err
+	}
+	return fake.report, nil
+}
+
 func TestServiceNitroCountsEveryCategory(t *testing.T) {
 	storage := &fakeStorage{counts: map[string]int{
 		"avatar/clothing/":   100,
@@ -34,7 +48,7 @@ func TestServiceNitroCountsEveryCategory(t *testing.T) {
 		"furniture/bundles/": 5000,
 		"pets/":              12,
 	}}
-	svc := newService(storage)
+	svc := newService(storage, &fakeFurnitureChecker{})
 
 	counts, err := svc.Nitro(context.Background())
 	if err != nil {
@@ -54,7 +68,7 @@ func TestServiceNitroCountsEveryCategory(t *testing.T) {
 
 func TestServiceNitroPropagatesError(t *testing.T) {
 	storage := &fakeStorage{countErr: errors.New("list failed")}
-	svc := newService(storage)
+	svc := newService(storage, &fakeFurnitureChecker{})
 
 	if _, err := svc.Nitro(context.Background()); err == nil {
 		t.Fatal("Nitro() error = nil")
@@ -64,7 +78,7 @@ func TestServiceNitroPropagatesError(t *testing.T) {
 func TestServiceNitroRunsConcurrently(t *testing.T) {
 	const latency = 20 * time.Millisecond
 	storage := &fakeStorage{counts: map[string]int{}, latency: latency}
-	svc := newService(storage)
+	svc := newService(storage, &fakeFurnitureChecker{})
 
 	start := time.Now()
 	if _, err := svc.Nitro(context.Background()); err != nil {
@@ -78,6 +92,35 @@ func TestServiceNitroRunsConcurrently(t *testing.T) {
 	}
 }
 
+func TestServiceOrphansReportsFurnitureCategory(t *testing.T) {
+	checker := &fakeFurnitureChecker{report: furniture.Report{
+		Matched:  100,
+		Orphaned: []string{"a", "b"},
+		Missing:  []string{"c"},
+	}}
+	svc := newService(&fakeStorage{}, checker)
+
+	reports, err := svc.Orphans(context.Background())
+	if err != nil {
+		t.Fatalf("Orphans() error = %v", err)
+	}
+	if len(reports) != 1 {
+		t.Fatalf("reports = %#v", reports)
+	}
+	report := reports[0]
+	if report.Category != "furniture" || report.Matched != 100 || report.Orphaned != 2 || report.Missing != 1 {
+		t.Fatalf("report = %#v", report)
+	}
+}
+
+func TestServiceOrphansPropagatesError(t *testing.T) {
+	svc := newService(&fakeStorage{}, &fakeFurnitureChecker{err: errors.New("check failed")})
+
+	if _, err := svc.Orphans(context.Background()); err == nil {
+		t.Fatal("Orphans() error = nil")
+	}
+}
+
 func BenchmarkServiceNitro(b *testing.B) {
 	storage := &fakeStorage{counts: map[string]int{
 		"avatar/clothing/":   100,
@@ -85,7 +128,7 @@ func BenchmarkServiceNitro(b *testing.B) {
 		"furniture/bundles/": 5000,
 		"pets/":              12,
 	}}
-	svc := newService(storage)
+	svc := newService(storage, &fakeFurnitureChecker{})
 	ctx := context.Background()
 
 	b.ResetTimer()
