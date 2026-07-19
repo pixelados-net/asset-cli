@@ -125,3 +125,9 @@ func (client *Client) ListKeys(ctx context.Context, prefix string) ([]string, er
 func (client *Client) Get(ctx context.Context, key string) (io.ReadCloser, error) {
 	return client.client.GetObject(ctx, client.bucket, key, sdk.GetObjectOptions{})
 }
+
+// Put uploads content to key, replacing any existing object with the same key.
+func (client *Client) Put(ctx context.Context, key string, reader io.Reader, size int64) error {
+	_, err := client.client.PutObject(ctx, client.bucket, key, reader, size, sdk.PutObjectOptions{})
+	return err
+}

@@ -7,6 +7,7 @@ import (
 	"github.com/pixelados-net/asset-cli/internal/furniture"
 	"github.com/pixelados-net/asset-cli/internal/stats"
 	"github.com/pixelados-net/asset-cli/internal/structure"
+	synccli "github.com/pixelados-net/asset-cli/internal/sync/cli"
 )
 
 // NewRootCommand builds the asset-cli root command with every realm's command
@@ -24,5 +25,6 @@ func NewRootCommand(version string) *cobra.Command {
 	root.AddCommand(structure.NewRealmCommand())
 	root.AddCommand(stats.NewRealmCommand())
 	root.AddCommand(furniture.NewRealmCommand())
+	root.AddCommand(synccli.NewRealmCommand())
 	return root
 }
