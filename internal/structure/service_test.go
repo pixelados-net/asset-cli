@@ -3,25 +3,49 @@ package structure
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
+	"time"
 )
 
 type fakeStorage struct {
+	mutex    sync.Mutex
 	existing map[string]bool
+	nested   map[string][]string
 	touched  []string
 	touchErr error
+	latency  time.Duration
 }
 
 func (storage *fakeStorage) Exists(_ context.Context, prefix string) (bool, error) {
+	storage.sleep()
+	storage.mutex.Lock()
+	defer storage.mutex.Unlock()
 	return storage.existing[prefix], nil
 }
 
+func (storage *fakeStorage) SubPrefixes(_ context.Context, prefix string) ([]string, error) {
+	storage.sleep()
+	storage.mutex.Lock()
+	defer storage.mutex.Unlock()
+	return storage.nested[prefix], nil
+}
+
 func (storage *fakeStorage) Touch(_ context.Context, key string) error {
+	storage.sleep()
+	storage.mutex.Lock()
+	defer storage.mutex.Unlock()
 	if storage.touchErr != nil {
 		return storage.touchErr
 	}
 	storage.touched = append(storage.touched, key)
 	return nil
+}
+
+func (storage *fakeStorage) sleep() {
+	if storage.latency > 0 {
+		time.Sleep(storage.latency)
+	}
 }
 
 func TestServiceCheckReportsMissingAndPresent(t *testing.T) {
@@ -40,6 +64,42 @@ func TestServiceCheckReportsMissingAndPresent(t *testing.T) {
 	}
 	if report.OK() {
 		t.Fatal("OK() = true, want false")
+	}
+}
+
+func TestServiceCheckReportsNestedFolders(t *testing.T) {
+	storage := &fakeStorage{
+		existing: map[string]bool{},
+		nested:   map[string][]string{FlatPaths[0]: {FlatPaths[0] + "bundles/"}},
+	}
+	svc := newService(storage)
+
+	report, err := svc.Check(context.Background())
+	if err != nil {
+		t.Fatalf("Check() error = %v", err)
+	}
+	if len(report.Nested) != 1 || report.Nested[0] != FlatPaths[0]+"bundles/" {
+		t.Fatalf("Nested = %#v", report.Nested)
+	}
+	if report.OK() {
+		t.Fatal("OK() = true, want false with nested folder present")
+	}
+}
+
+func TestServiceCheckRunsConcurrently(t *testing.T) {
+	const latency = 20 * time.Millisecond
+	storage := &fakeStorage{existing: map[string]bool{}, latency: latency}
+	svc := newService(storage)
+
+	start := time.Now()
+	if _, err := svc.Check(context.Background()); err != nil {
+		t.Fatalf("Check() error = %v", err)
+	}
+	elapsed := time.Since(start)
+
+	sequential := time.Duration(len(ExpectedPaths)+len(FlatPaths)) * latency
+	if elapsed >= sequential {
+		t.Fatalf("Check() took %v, want well under the sequential bound %v (not running concurrently?)", elapsed, sequential)
 	}
 }
 
@@ -79,5 +139,35 @@ func TestReportOK(t *testing.T) {
 	}
 	if (Report{Missing: []string{"x"}}).OK() {
 		t.Fatal("OK() = true with missing paths")
+	}
+	if (Report{Nested: []string{"x"}}).OK() {
+		t.Fatal("OK() = true with nested paths")
+	}
+}
+
+func BenchmarkServiceCheck(b *testing.B) {
+	storage := &fakeStorage{existing: map[string]bool{}}
+	svc := newService(storage)
+	ctx := context.Background()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := svc.Check(ctx); err != nil {
+			b.Fatalf("Check() error = %v", err)
+		}
+	}
+}
+
+func BenchmarkServiceCreate(b *testing.B) {
+	ctx := context.Background()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		storage := &fakeStorage{existing: map[string]bool{}}
+		svc := newService(storage)
+		b.StartTimer()
+
+		if _, err := svc.Create(ctx); err != nil {
+			b.Fatalf("Create() error = %v", err)
+		}
 	}
 }

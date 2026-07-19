@@ -2,6 +2,7 @@
 
 - Keep the repository a reusable CLI tool boilerplate for managing Habbo asset storage; do not add unrelated product or storage concerns.
 - All code must be performant, asynchronous where I/O is involved, and safe to stop through `context.Context`.
+- A realm operation that issues multiple independent object-storage calls (e.g. checking several bucket paths, counting several categories) must run them concurrently through `errgroup.Group` with a bounded `SetLimit`, guarding shared results with a `sync.Mutex`; keep the concurrency limit a named, documented constant. Cover the concurrency itself with a test that proves the calls overlap (e.g. an artificial per-call latency asserted to run well under the sequential bound), and add a `Benchmark` alongside the unit tests for any operation that walks a bucket prefix that can hold many thousands of objects.
 - All exported functions, types, constants, variables, struct fields, and interfaces must use Go doc style comments.
 - Do not add comments inside code unless they clarify non-obvious behavior.
 - Keep every code file under 250 lines and every package at a maximum of 6 source/test file pairs.

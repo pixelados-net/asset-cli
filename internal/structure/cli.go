@@ -42,6 +42,9 @@ func newCheckCommand() *cobra.Command {
 				for _, path := range report.Missing {
 					log.Warn("structure path missing", zap.String("path", path))
 				}
+				for _, path := range report.Nested {
+					log.Warn("unexpected nested folder", zap.String("path", path))
+				}
 				incomplete = !report.OK()
 				return nil
 			})

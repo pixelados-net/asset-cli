@@ -27,3 +27,14 @@ var ExpectedPaths = []string{
 	"branding/",
 	"gamedata/",
 }
+
+// FlatPaths are expected paths that must hold one bundle or icon file per item
+// directly under the prefix, with no nested subfolders.
+var FlatPaths = []string{
+	"avatar/clothing/",
+	"avatar/effects/",
+	"furniture/bundles/",
+	"furniture/icons/",
+	"engine/",
+	"pets/",
+}

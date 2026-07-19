@@ -75,3 +75,34 @@ func (client *Client) Touch(ctx context.Context, key string) error {
 	_, err := client.client.PutObject(ctx, client.bucket, key, bytes.NewReader(nil), 0, sdk.PutObjectOptions{})
 	return err
 }
+
+// SubPrefixes returns the immediate sub-prefixes ("subfolders") found directly
+// under prefix, using delimiter-based (non-recursive) listing.
+func (client *Client) SubPrefixes(ctx context.Context, prefix string) ([]string, error) {
+	var prefixes []string
+	objects := client.client.ListObjects(ctx, client.bucket, sdk.ListObjectsOptions{Prefix: prefix})
+	for object := range objects {
+		if object.Err != nil {
+			return nil, object.Err
+		}
+		if strings.HasSuffix(object.Key, "/") {
+			prefixes = append(prefixes, object.Key)
+		}
+	}
+	return prefixes, nil
+}
+
+// CountByExtension counts objects under prefix whose key ends with extension.
+func (client *Client) CountByExtension(ctx context.Context, prefix, extension string) (int, error) {
+	count := 0
+	objects := client.client.ListObjects(ctx, client.bucket, sdk.ListObjectsOptions{Prefix: prefix, Recursive: true})
+	for object := range objects {
+		if object.Err != nil {
+			return 0, object.Err
+		}
+		if strings.HasSuffix(object.Key, extension) {
+			count++
+		}
+	}
+	return count, nil
+}
