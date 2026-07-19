@@ -1,0 +1,21 @@
+# AGENTS
+
+- Keep the repository a reusable CLI tool boilerplate for managing Habbo asset storage; do not add unrelated product or storage concerns.
+- All code must be performant, asynchronous where I/O is involved, and safe to stop through `context.Context`.
+- All exported functions, types, constants, variables, struct fields, and interfaces must use Go doc style comments.
+- Do not add comments inside code unless they clarify non-obvious behavior.
+- Keep every code file under 250 lines and every package at a maximum of 6 source/test file pairs.
+- Keep domain jobs under `internal/`; reusable runtime adapters belong under `platform/`.
+- Preserve dependency injection for the Cobra CLI commands, MinIO object storage, and the process logger.
+- Compose process dependencies through focused Uber Fx modules; keep constructors free of manual global wiring and register resource cleanup through `fx.Lifecycle`.
+- Every package that participates in dependency injection must own its providers in that package's `module.go`; adapter subpackages must expose their implementations with `fx.As` when a domain consumes an interface.
+- Cross-package collections such as CLI commands must be contributed by their owning packages through Fx value groups; the consuming package may assemble the group but must not register other packages' items itself.
+- Keep `platform/bootstrap/module.go` limited to composing package-owned modules and providing bootstrap-owned runtime types.
+- Do not create registry or provider aggregation files such as `domains.go`, `providers.go`, or `registry.go` that wire unrelated packages or multiple domains together.
+- Follow standard Go style and avoid unnecessary abstractions or dependencies.
+- All Go code must pass the complete `staticcheck ./...` suite; in particular, error strings must start lowercase and must not end with punctuation to satisfy ST1005.
+- All runtime adapters and third-party SDKs must write through the injected Zap logger; do not allow dependencies to fall back to standard-library or unstructured logging.
+- Publish GHCR images only from semantic version tag workflows matching `v*.*.*`; tagged releases must compile and validate before image publication.
+- Never use magic strings for command flags, environment variable keys, or configurable defaults; declare named constants or variables with documented defaults.
+- Do not add Docker Compose files.
+- Run `gofmt`, `go test ./...`, `go vet ./...`, `staticcheck ./...`, and `go test ./... -race` before handing off changes.
