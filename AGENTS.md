@@ -17,6 +17,7 @@
 - Follow standard Go style and avoid unnecessary abstractions or dependencies.
 - All Go code must pass the complete `staticcheck ./...` suite; in particular, error strings must start lowercase and must not end with punctuation to satisfy ST1005.
 - All runtime adapters and third-party SDKs must write through the injected Zap logger; do not allow dependencies to fall back to standard-library or unstructured logging.
+- Every realm command reports its results and errors through the injected Zap logger, honoring `ASSET_CLI_LOG_LEVEL`/`ASSET_CLI_LOG_FORMAT`, instead of `fmt.Print`/`Fprintf` to stdout or stderr; keep that logging in the command's Cobra adapter, not in the realm's port implementation, so the port stays a pure data operation reusable from any future transport. Commands with no injected dependencies (currently only `version`) are exempt and may write directly to stdout.
 - Publish GHCR images only from semantic version tag workflows matching `v*.*.*`; tagged releases must compile and validate before image publication.
 - Never use magic strings for command flags, environment variable keys, or configurable defaults; declare named constants or variables with documented defaults.
 - Do not add Docker Compose files.

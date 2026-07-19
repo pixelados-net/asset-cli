@@ -3,6 +3,7 @@ package minio
 import (
 	"bytes"
 	"context"
+	"strings"
 
 	sdk "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -19,7 +20,7 @@ func New(config Config) (*Client, error) {
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
-	client, err := sdk.New(config.Endpoint, &sdk.Options{
+	client, err := sdk.New(normalizeEndpoint(config.Endpoint), &sdk.Options{
 		Creds:  credentials.NewStaticV4(config.AccessKey, config.SecretKey, ""),
 		Secure: config.UseSSL,
 		Region: config.Region,
@@ -28,6 +29,16 @@ func New(config Config) (*Client, error) {
 		return nil, err
 	}
 	return &Client{client: client, bucket: config.Bucket}, nil
+}
+
+// normalizeEndpoint strips a scheme and trailing slash so a fully-qualified URL
+// (e.g. copied from a browser or the MinIO console) is still accepted; the SDK
+// itself only accepts a bare host[:port].
+func normalizeEndpoint(endpoint string) string {
+	endpoint = strings.TrimSpace(endpoint)
+	endpoint = strings.TrimPrefix(endpoint, "https://")
+	endpoint = strings.TrimPrefix(endpoint, "http://")
+	return strings.TrimSuffix(endpoint, "/")
 }
 
 // SDK returns the underlying MinIO client.

@@ -4,23 +4,20 @@ import (
 	"context"
 	"sort"
 
-	"go.uber.org/zap"
-
 	"github.com/pixelados-net/asset-cli/platform/minio"
 )
 
 type service struct {
 	storage Storage
-	log     *zap.Logger
 }
 
 // NewService creates the structure realm's service backed by the injected MinIO client.
-func NewService(storage *minio.Client, log *zap.Logger) Service {
-	return newService(storage, log)
+func NewService(storage *minio.Client) Service {
+	return newService(storage)
 }
 
-func newService(storage Storage, log *zap.Logger) *service {
-	return &service{storage: storage, log: log}
+func newService(storage Storage) *service {
+	return &service{storage: storage}
 }
 
 func (svc *service) Check(ctx context.Context) (Report, error) {
@@ -51,7 +48,6 @@ func (svc *service) Create(ctx context.Context) ([]string, error) {
 		if err := svc.storage.Touch(ctx, path+placeholderSuffix); err != nil {
 			return created, err
 		}
-		svc.log.Info("created structure path", zap.String("path", path))
 		created = append(created, path)
 	}
 	return created, nil

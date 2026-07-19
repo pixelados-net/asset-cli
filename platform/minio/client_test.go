@@ -21,3 +21,24 @@ func TestNewBuildsClientWithoutNetworkIO(t *testing.T) {
 		t.Fatal("SDK() = nil")
 	}
 }
+
+func TestNewAcceptsFullyQualifiedEndpoint(t *testing.T) {
+	config := Config{Endpoint: "https://storage.example.com/", AccessKey: "key", SecretKey: "secret", Bucket: "assets"}
+	if _, err := New(config); err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+}
+
+func TestNormalizeEndpoint(t *testing.T) {
+	cases := map[string]string{
+		"https://storage.example.com":  "storage.example.com",
+		"http://127.0.0.1:9000/":       "127.0.0.1:9000",
+		"127.0.0.1:9000":               "127.0.0.1:9000",
+		" https://storage.example.com": "storage.example.com",
+	}
+	for input, want := range cases {
+		if got := normalizeEndpoint(input); got != want {
+			t.Fatalf("normalizeEndpoint(%q) = %q, want %q", input, got, want)
+		}
+	}
+}

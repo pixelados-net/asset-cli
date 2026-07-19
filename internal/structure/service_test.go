@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-
-	"go.uber.org/zap"
 )
 
 type fakeStorage struct {
@@ -28,7 +26,7 @@ func (storage *fakeStorage) Touch(_ context.Context, key string) error {
 
 func TestServiceCheckReportsMissingAndPresent(t *testing.T) {
 	storage := &fakeStorage{existing: map[string]bool{ExpectedPaths[0]: true}}
-	svc := newService(storage, zap.NewNop())
+	svc := newService(storage)
 
 	report, err := svc.Check(context.Background())
 	if err != nil {
@@ -47,7 +45,7 @@ func TestServiceCheckReportsMissingAndPresent(t *testing.T) {
 
 func TestServiceCreateFillsOnlyMissingPaths(t *testing.T) {
 	storage := &fakeStorage{existing: map[string]bool{ExpectedPaths[0]: true}}
-	svc := newService(storage, zap.NewNop())
+	svc := newService(storage)
 
 	created, err := svc.Create(context.Background())
 	if err != nil {
@@ -68,7 +66,7 @@ func TestServiceCreateFillsOnlyMissingPaths(t *testing.T) {
 
 func TestServiceCreatePropagatesTouchError(t *testing.T) {
 	storage := &fakeStorage{existing: map[string]bool{}, touchErr: errors.New("touch failed")}
-	svc := newService(storage, zap.NewNop())
+	svc := newService(storage)
 
 	if _, err := svc.Create(context.Background()); err == nil {
 		t.Fatal("Create() error = nil")
