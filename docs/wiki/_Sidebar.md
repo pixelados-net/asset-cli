@@ -1,1 +1,2 @@
 - [Home](Home)
+- [Structure](STRUCTURE)

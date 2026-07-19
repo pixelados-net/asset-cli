@@ -5,16 +5,26 @@
 [![Package](https://github.com/pixelados-net/asset-cli/actions/workflows/package.yml/badge.svg)](https://github.com/pixelados-net/asset-cli/actions/workflows/package.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/pixelados-net/asset-cli.svg)](https://pkg.go.dev/github.com/pixelados-net/asset-cli)
 
-`asset-cli` is a production-oriented Go boilerplate for a Habbo asset management CLI. It includes Cobra command wiring, a MinIO object storage adapter, Uber Fx dependency injection, structured Zap logging, and a real-process E2E harness. The tool is stateless: every invocation parses configuration, runs one command, and exits.
+`asset-cli` normalizes Habbo asset storage. Raw asset dumps (Flash-era `c_images`/`dcr` exports, `bundled` Nitro packages, ad-hoc repacks) each tend to grow their own deeply-nested, inconsistently-named folder layout, full of ambiguous numeric names. `asset-cli` defines one canonical MinIO bucket layout — documented in [`docs/wiki/STRUCTURE.md`](docs/wiki/STRUCTURE.md) — and gives you commands to check a bucket against it and repair what is missing, instead of auditing folders by hand in the MinIO console.
+
+Functionality is organized as independent **realms**: small, transport-agnostic domains under `internal/<realm>/`, each exposing its capabilities through a Go interface (its port) and its own Cobra commands. This keeps a realm's logic reusable from the CLI or any future transport without change. The first realm is `structure`; further realms (`furniture`, `catalog`, …) follow the same pattern as the tool grows. Under the hood this is Cobra command wiring, a MinIO object storage adapter, Uber Fx dependency injection, and structured Zap logging, validated by a real-process E2E harness. The tool is stateless: every invocation parses configuration, runs one command, and exits.
 
 ## Run
 
 ```sh
 cp .env.example .env
 go run ./cmd version
+go run ./cmd structure check
+go run ./cmd structure create
 ```
 
-`ASSET_CLI_MINIO_ENDPOINT`, `ASSET_CLI_MINIO_ACCESS_KEY`, `ASSET_CLI_MINIO_SECRET_KEY`, and `ASSET_CLI_MINIO_BUCKET` are mandatory for any command that touches storage.
+`ASSET_CLI_MINIO_ENDPOINT`, `ASSET_CLI_MINIO_ACCESS_KEY`, `ASSET_CLI_MINIO_SECRET_KEY`, and `ASSET_CLI_MINIO_BUCKET` are mandatory for any command that touches storage — every command except `version`.
+
+## Realms
+
+- **`structure`** — verifies and repairs the bucket's expected folder layout (see [`docs/wiki/STRUCTURE.md`](docs/wiki/STRUCTURE.md) for the full canonical tree and the reasoning behind it).
+  - `asset-cli structure check` prints every expected path as `ok` or `missing` and exits non-zero if anything is missing.
+  - `asset-cli structure create` creates a placeholder object for every missing expected path so it renders as a folder in the MinIO console.
 
 Logging is configured independently from the environment:
 
@@ -48,18 +58,18 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-## Structure
+## Repository layout
 
 - `cmd/` contains the process entrypoint.
-- `internal/` contains domain-owned CLI command logic, added as the tool grows.
-- `platform/cli/` contains the Cobra root command and its subcommands.
+- `internal/<realm>/` contains each realm's port (`Service` interface), its Fx-provided implementation, and its own Cobra command tree (e.g. `internal/structure/`).
+- `platform/cli/` contains the Cobra root command and is the one place that assembles every realm's command tree.
 - `platform/minio/` contains the reusable MinIO object storage client.
 - `platform/logger/` builds the injected Zap logger.
 - `platform/config/` unifies every platform module's own `Config` struct and parses `ASSET_CLI_*` variables once.
-- `platform/bootstrap/` composes focused Uber Fx modules for commands that need injected dependencies.
-- Every DI-enabled package owns its `module.go`; bootstrap only composes those modules.
+- `platform/bootstrap/` composes the platform-owned Fx modules (`config`, `logger`, `minio`) and exposes `Invoke`, which realm commands use to resolve their own dependencies without importing MinIO or Zap directly.
+- Every DI-enabled package owns its `module.go`; bootstrap only composes platform modules, never realms, to avoid an import cycle back into `internal/`.
 - `e2e/` builds the real binary and validates command output through a real process.
-- `docs/wiki/` is synced to the GitHub wiki on every push to `main` that touches it.
+- `docs/wiki/` is synced to the GitHub wiki on every push to `main` that touches it — see [`docs/wiki/STRUCTURE.md`](docs/wiki/STRUCTURE.md) for the canonical bucket layout.
 
 ## Validate
 

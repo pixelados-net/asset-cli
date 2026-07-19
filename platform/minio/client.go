@@ -1,6 +1,7 @@
 package minio
 
 import (
+	"bytes"
 	"context"
 
 	sdk "github.com/minio/minio-go/v7"
@@ -42,5 +43,24 @@ func (client *Client) Bucket() string {
 // Ping verifies that the managed bucket is reachable.
 func (client *Client) Ping(ctx context.Context) error {
 	_, err := client.client.BucketExists(ctx, client.bucket)
+	return err
+}
+
+// Exists reports whether any object exists under the given key prefix.
+func (client *Client) Exists(ctx context.Context, prefix string) (bool, error) {
+	objects := client.client.ListObjects(ctx, client.bucket, sdk.ListObjectsOptions{Prefix: prefix, MaxKeys: 1})
+	object, ok := <-objects
+	if !ok {
+		return false, nil
+	}
+	if object.Err != nil {
+		return false, object.Err
+	}
+	return true, nil
+}
+
+// Touch creates an empty placeholder object at key so the prefix becomes visible.
+func (client *Client) Touch(ctx context.Context, key string) error {
+	_, err := client.client.PutObject(ctx, client.bucket, key, bytes.NewReader(nil), 0, sdk.PutObjectOptions{})
 	return err
 }

@@ -1,16 +1,24 @@
 // Package cli contains the asset-cli Cobra command tree.
 package cli
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/spf13/cobra"
 
-// NewRootCommand builds the asset-cli root command with every subcommand attached.
+	"github.com/pixelados-net/asset-cli/internal/structure"
+)
+
+// NewRootCommand builds the asset-cli root command with every realm's command
+// tree attached. This is the one place that assembles realms into the CLI transport;
+// each realm otherwise stays unaware of any other realm or of Cobra internals beyond
+// its own command tree.
 func NewRootCommand(version string) *cobra.Command {
 	root := &cobra.Command{
 		Use:           "asset-cli",
-		Short:         "asset-cli manages Habbo asset storage",
+		Short:         "asset-cli normalizes and manages Habbo asset storage",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
 	root.AddCommand(newVersionCommand(version))
+	root.AddCommand(structure.NewRealmCommand())
 	return root
 }

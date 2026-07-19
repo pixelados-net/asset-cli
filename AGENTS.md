@@ -5,12 +5,14 @@
 - All exported functions, types, constants, variables, struct fields, and interfaces must use Go doc style comments.
 - Do not add comments inside code unless they clarify non-obvious behavior.
 - Keep every code file under 250 lines and every package at a maximum of 6 source/test file pairs.
-- Keep domain jobs under `internal/`; reusable runtime adapters belong under `platform/`.
+- Organize domain functionality as independent realms under `internal/<realm>/` (for example `structure`, `furniture`, `catalog`); reusable runtime adapters belong under `platform/`.
 - Preserve dependency injection for the Cobra CLI commands, MinIO object storage, and the process logger.
 - Compose process dependencies through focused Uber Fx modules; keep constructors free of manual global wiring and register resource cleanup through `fx.Lifecycle`.
+- Every realm must expose its capabilities through a small Go interface (its port, e.g. `structure.Service`) so its logic stays usable from the CLI or any future transport without change; keep realms free of Cobra types beyond their own command tree, and avoid full DDD ceremony (no aggregates, repositories, or layered domain models) since a realm is a small bounded package, not a separate architecture.
 - Every package that participates in dependency injection must own its providers in that package's `module.go`; adapter subpackages must expose their implementations with `fx.As` when a domain consumes an interface.
-- Cross-package collections such as CLI commands must be contributed by their owning packages through Fx value groups; the consuming package may assemble the group but must not register other packages' items itself.
-- Keep `platform/bootstrap/module.go` limited to composing package-owned modules and providing bootstrap-owned runtime types.
+- Realm commands must resolve dependencies only through `platform/bootstrap.Invoke`, passing the realm's own Fx module; they must never construct MinIO clients or loggers directly.
+- Keep `platform/bootstrap/module.go` limited to composing platform-owned modules (`config`, `logger`, `minio`) and exposing the `Invoke` helper; it must never import `internal/` packages, which is what keeps realms free to depend on `bootstrap` without an import cycle.
+- `platform/cli` is the one place that assembles every realm's static Cobra command tree, by importing each realm package directly; realms must not register their commands anywhere else, and `platform/cli` must not implement realm logic itself.
 - Do not create registry or provider aggregation files such as `domains.go`, `providers.go`, or `registry.go` that wire unrelated packages or multiple domains together.
 - Follow standard Go style and avoid unnecessary abstractions or dependencies.
 - All Go code must pass the complete `staticcheck ./...` suite; in particular, error strings must start lowercase and must not end with punctuation to satisfy ST1005.
