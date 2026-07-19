@@ -9,10 +9,10 @@ const placeholderSuffix = ".keep"
 var ExpectedPaths = []string{
 	"avatar/clothing/",
 	"avatar/effects/",
-	"furniture/",
+	"furniture/bundles/",
+	"furniture/icons/",
 	"pets/",
 	"engine/",
-	"legacy/furniture-icons/",
 	"media/badges/",
 	"media/catalog-pages/",
 	"media/campaigns/",
