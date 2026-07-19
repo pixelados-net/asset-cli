@@ -4,7 +4,10 @@ package cli
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/pixelados-net/asset-cli/internal/clothing"
+	"github.com/pixelados-net/asset-cli/internal/effects"
 	"github.com/pixelados-net/asset-cli/internal/furniture"
+	"github.com/pixelados-net/asset-cli/internal/pets"
 	"github.com/pixelados-net/asset-cli/internal/stats"
 	"github.com/pixelados-net/asset-cli/internal/structure"
 	synccli "github.com/pixelados-net/asset-cli/internal/sync/cli"
@@ -25,6 +28,9 @@ func NewRootCommand(version string) *cobra.Command {
 	root.AddCommand(structure.NewRealmCommand())
 	root.AddCommand(stats.NewRealmCommand())
 	root.AddCommand(furniture.NewRealmCommand())
+	root.AddCommand(clothing.NewRealmCommand())
+	root.AddCommand(effects.NewRealmCommand())
+	root.AddCommand(pets.NewRealmCommand())
 	root.AddCommand(synccli.NewRealmCommand())
 	return root
 }

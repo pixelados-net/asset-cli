@@ -29,3 +29,16 @@ func TestRootCommandRejectsUnknownCommand(t *testing.T) {
 		t.Fatalf("Execute() error = %v", err)
 	}
 }
+
+func TestRootCommandExposesEveryRealm(t *testing.T) {
+	root := NewRootCommand("0.0.1")
+	names := make(map[string]bool)
+	for _, command := range root.Commands() {
+		names[command.Name()] = true
+	}
+	for _, name := range []string{"clothing", "effects", "furniture", "pets", "stats", "structure", "sync"} {
+		if !names[name] {
+			t.Fatalf("commands = %#v, missing %q", names, name)
+		}
+	}
+}

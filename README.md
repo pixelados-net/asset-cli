@@ -7,7 +7,7 @@
 
 `asset-cli` normalizes Habbo asset storage. Raw asset dumps (Flash-era `c_images`/`dcr` exports, `bundled` Nitro packages, ad-hoc repacks) each tend to grow their own deeply-nested, inconsistently-named folder layout, full of ambiguous numeric names. `asset-cli` defines one canonical MinIO bucket layout — documented in [`docs/wiki/STRUCTURE.md`](docs/wiki/STRUCTURE.md) — and gives you commands to check a bucket against it and repair what is missing, instead of auditing folders by hand in the MinIO console.
 
-Functionality is organized as independent **realms**: small, transport-agnostic domains under `internal/<realm>/`, each exposing its capabilities through a Go interface (its port) and its own Cobra commands. This keeps a realm's logic reusable from the CLI or any future transport without change. The first realm is `structure`; further realms (`furniture`, `catalog`, …) follow the same pattern as the tool grows. Under the hood this is Cobra command wiring, a MinIO object storage adapter, Uber Fx dependency injection, and structured Zap logging, validated by a real-process E2E harness. The tool is stateless: every invocation parses configuration, runs one command, and exits.
+Functionality is organized as independent **realms**: small, transport-agnostic domains under `internal/<realm>/`, each exposing its capabilities through a Go interface (its port) and its own Cobra commands. This keeps a realm's logic reusable from the CLI or any future transport without change. Current realms cover bucket structure, clothing, effects, furniture, pets, aggregate statistics, and emulator synchronization. Under the hood this is Cobra command wiring, a MinIO object storage adapter, Uber Fx dependency injection, and structured Zap logging, validated by a real-process E2E harness. The tool is stateless: every invocation parses configuration, runs one command, and exits.
 
 ## Run
 
@@ -15,7 +15,11 @@ Functionality is organized as independent **realms**: small, transport-agnostic 
 cp .env.example .env
 go run ./cmd version
 go run ./cmd structure check
-go run ./cmd structure create
+go run ./cmd clothing check
+go run ./cmd effects check
+go run ./cmd furniture check
+go run ./cmd pets check
+go run ./cmd stats orphan
 ```
 
 `ASSET_CLI_MINIO_ENDPOINT`, `ASSET_CLI_MINIO_ACCESS_KEY`, `ASSET_CLI_MINIO_SECRET_KEY`, and `ASSET_CLI_MINIO_BUCKET` are mandatory for any command that touches storage — every command except `version`.
@@ -25,6 +29,22 @@ go run ./cmd structure create
 - **`structure`** — verifies and repairs the bucket's expected folder layout (see [`docs/wiki/STRUCTURE.md`](docs/wiki/STRUCTURE.md) for the full canonical tree and the reasoning behind it).
   - `asset-cli structure check` prints every expected path as `ok` or `missing` and exits non-zero if anything is missing.
   - `asset-cli structure create` creates a placeholder object for every missing expected path so it renders as a folder in the MinIO console.
+- **`clothing`** — compares `.nitro` files under `avatar/clothing/` with the library IDs declared by `gamedata/FigureMap.json`.
+  - `asset-cli clothing check` warns about unreferenced bundles and exits non-zero when a declared library has no bundle.
+- **`effects`** — compares `.nitro` files under `avatar/effects/` with the library names declared by `gamedata/EffectMap.json`.
+  - `asset-cli effects check` warns about unreferenced bundles and exits non-zero when a declared effect library has no bundle.
+- **`furniture`** — compares `.nitro` files under `furniture/bundles/` with classnames from `gamedata/FurnitureData.json`.
+  - `asset-cli furniture check` normalizes `*N` color variants, warns about unreferenced bundles, and exits non-zero for missing bundles.
+- **`pets`** — compares `.nitro` files under `pets/` with Nitro's protocol-ordered standard pet asset names.
+  - `asset-cli pets check` permits custom bundles as warnings and exits non-zero when a standard pet asset has no bundle.
+- **`stats`** — reports `.nitro` totals and bundle/catalog integrity summaries.
+  - `asset-cli stats nitro` counts clothing, effects, furniture, and pet bundles.
+  - `asset-cli stats orphan` checks all four categories concurrently and reports matched, orphaned, and missing totals.
+- **`sync`** — reconciles `FurnitureData.json` into the selected emulator's furniture definition table.
+  - `asset-cli sync furniture check` is read-only.
+  - `asset-cli sync furniture apply` is a dry run unless `--yes` is passed.
+
+Clothing and effects intentionally have no emulator `apply`: Arcturus stores commercial clothing mappings and player effect grants, while Pixels has no clothing definition table and stores effect grants only. Pet behavior tables are also not asset catalogs. These operational tables are not equivalent to `items_base`/`furniture_definitions` and must not be populated from client asset maps.
 
 Logging is configured independently from the environment:
 

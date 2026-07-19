@@ -8,8 +8,7 @@ type Service interface {
 	// Nitro counts .nitro bundles per content category.
 	Nitro(ctx context.Context) ([]Count, error)
 	// Orphans summarizes bundle-vs-catalog cross-checks per content category.
-	// Furniture is the only category wired in today; clothing, effects, and pets
-	// follow the same shape once their own realms grow a Catalog cross-check.
+	// Clothing, effects, furniture, and pets are checked concurrently.
 	Orphans(ctx context.Context) ([]OrphanReport, error)
 }
 
