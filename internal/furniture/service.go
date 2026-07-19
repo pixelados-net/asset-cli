@@ -3,6 +3,7 @@ package furniture
 import (
 	"context"
 	"sort"
+	"strings"
 
 	"golang.org/x/sync/errgroup"
 
@@ -48,8 +49,8 @@ func (svc *service) Check(ctx context.Context) (Report, error) {
 		return Report{}, err
 	}
 
-	bundleSet := toSet(bundleNames)
-	catalogSet := toSet(catalogNames)
+	bundleSet := toSet(bundleNames, baseClassname)
+	catalogSet := toSet(catalogNames, baseClassname)
 
 	var report Report
 	for name := range bundleSet {
@@ -69,10 +70,23 @@ func (svc *service) Check(ctx context.Context) (Report, error) {
 	return report, nil
 }
 
-func toSet(names []string) map[string]bool {
+func toSet(names []string, normalize func(string) string) map[string]bool {
 	set := make(map[string]bool, len(names))
 	for _, name := range names {
-		set[name] = true
+		set[normalize(name)] = true
 	}
 	return set
+}
+
+// baseClassname strips a trailing "*N" color/variant index from a classname.
+// nitro-renderer splits every furni classname on "*" before resolving its asset
+// bundle (FurnitureDataLoader.ts, RoomContentLoader.removeColorIndex): catalog
+// entries like "item*0", "item*1", "item*2" are distinct purchasable colors that
+// all share the single bundle "item.nitro". Comparing raw classnames would report
+// every color variant beyond the first as a false "missing bundle".
+func baseClassname(classname string) string {
+	if index := strings.IndexByte(classname, '*'); index >= 0 {
+		return classname[:index]
+	}
+	return classname
 }

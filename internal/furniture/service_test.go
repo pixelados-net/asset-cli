@@ -77,6 +77,12 @@ func TestServiceCheckDiff(t *testing.T) {
 			catalog:     []string{"a", "b"},
 			wantMatched: 2,
 		},
+		{
+			name:        "catalog color index variants share one bundle",
+			bundles:     []string{"yordi_val_c24_catplushie"},
+			catalog:     []string{"yordi_val_c24_catplushie*0", "yordi_val_c24_catplushie*1", "yordi_val_c24_catplushie*2"},
+			wantMatched: 1,
+		},
 	}
 
 	for _, testCase := range cases {
@@ -139,6 +145,20 @@ func TestServiceCheckRunsConcurrently(t *testing.T) {
 	sequential := 2 * latency
 	if elapsed >= sequential {
 		t.Fatalf("Check() took %v, want well under the sequential bound %v (not running concurrently?)", elapsed, sequential)
+	}
+}
+
+func TestBaseClassname(t *testing.T) {
+	cases := map[string]string{
+		"yordi_val_c24_catplushie*9": "yordi_val_c24_catplushie",
+		"item*0":                     "item",
+		"no_index_item":              "no_index_item",
+		"":                           "",
+	}
+	for input, want := range cases {
+		if got := baseClassname(input); got != want {
+			t.Fatalf("baseClassname(%q) = %q, want %q", input, got, want)
+		}
 	}
 }
 
